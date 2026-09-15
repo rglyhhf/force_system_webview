@@ -1,0 +1,13 @@
+# 运行时生成
+webroot/scan-result.txt
+webroot/status.json
+webroot/log.txt
+webroot/config.json
+webroot/*.bak
+
+# 本地开发
+*.bak
+*.bin
+*.dex
+*.jpg
+*.png
