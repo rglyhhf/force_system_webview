@@ -8,9 +8,19 @@ MIGRATED_FLAG=$DATA_ROOT/.migrated_v2
 mkdir -p $DATA_ROOT/backup $DATA_ROOT/state
 chmod 755 $DATA_ROOT $DATA_ROOT/backup $DATA_ROOT/state
 
-# 首次运行：初始化默认配置
-if [ ! -f "$CONFIG_FILE" ] && [ -f "$MODDIR/webroot/config.json" ]; then
-    cp -f "$MODDIR/webroot/config.json" "$CONFIG_FILE"
+# 初始化配置
+if [ ! -f "$CONFIG_FILE" ]; then
+    if [ -f "$MODDIR/webroot/config.json" ]; then
+        # 复制默认配置
+        cp -f "$MODDIR/webroot/config.json" "$CONFIG_FILE"
+    elif [ -f "$MODDIR/init_config.json" ]; then
+        # 使用初始化配置
+        cp -f "$MODDIR/init_config.json" "$CONFIG_FILE"
+    else
+        # 生成最小初始化配置
+        echo '{"apps":{}}' > "$CONFIG_FILE"
+    fi
+
     chmod 644 "$CONFIG_FILE"
 fi
 
