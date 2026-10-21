@@ -1636,6 +1636,47 @@ const APP_NAMES = {
     'mark.via': 'Via浏览器', 'com.coolapk.market': '酷安'
 };
 function appName(pkg) { return APP_NAMES[pkg] || pkg; }
+// 将扫描发现但尚未配置的应用批量添加到应用列表
+async function autoAddScannedApps(scanData) {
+    await loadConfig();
+
+    const oldApps = config.apps || {};
+    const nextApps = { ...oldApps };
+    const added = [];
+
+    for (const it of scanData) {
+        // 只添加未管理的新应用，不覆盖已有配置
+        if (it.mstat !== '未管理' || nextApps[it.pkg]) continue;
+
+        // 扫描结果中的特征目录以空格分隔
+        const dirs = (it.dirs || '').trim().split(/\s+/).filter(Boolean);
+        if (!it.pkg || dirs.length === 0) continue;
+
+        nextApps[it.pkg] = {
+            name: appName(it.pkg),
+            enabled: false,
+            dirs: dirs
+        };
+
+        added.push(it.pkg);
+    }
+
+    if (added.length === 0) return [];
+
+    // 保存失败时恢复内存中的原配置
+    config.apps = nextApps;
+    try {
+        await saveConfig();
+    } catch (e) {
+        config.apps = oldApps;
+        throw e;
+    }
+
+    // 立即刷新应用列表
+    renderList();
+
+    return added;
+}
 const COMPAT = {
     green:  { label: '已适配', desc: '实测大部分功能正常，可放心管控' },
     yellow: { label: '未验证', desc: '未经验证，强制后可能出现页面异常，请自行测试' },
@@ -1756,16 +1797,43 @@ $('b-scan').addEventListener('click', async () => {
             throw new Error('扫描超时（应用较多时可能较慢，稍后再试）');
         }
 
-        // ⑤ 弹窗放大 + 渲染结果
+        // ⑤ 自动添加新发现的应用
+        let addedPkgs = [];
+
+        try {
+            addedPkgs = await autoAddScannedApps(scanData);
+
+            // 更新扫描结果状态，避免刚添加的应用仍显示为未管理
+            const addedSet = new Set(addedPkgs);
+            for (const it of scanData) {
+                if (addedSet.has(it.pkg)) {
+                    it.mstat = '已配置';
+                }
+            }
+        } catch (e) {
+            toast('自动添加应用失败：' + e.message, true, 5000);
+        }
+
+        // ⑥ 弹窗放大 + 渲染结果
         modal.classList.add('expand');
         await new Promise(r => setTimeout(r, 350));
         loading.style.display = 'none';
         results.classList.add('show');
         renderScanResult(scanData);
 
-        // 缓存本次结果，下次打开可直接查看
+        // 显示自动添加结果
+        if (addedPkgs.length > 0) {
+            toast('扫描完成，已自动添加 ' + addedPkgs.length + ' 个应用');
+        } else {
+            toast('扫描完成，没有需要新增的应用');
+        }
+
+        // 缓存本次扫描结果
         try {
-            localStorage.setItem('fsw_last_scan', JSON.stringify({ ts: Date.now(), data: scanData }));
+            localStorage.setItem(
+                'fsw_last_scan',
+                JSON.stringify({ ts: Date.now(), data: scanData })
+            );
             updateLastScanBtn();
         } catch (e) {}
     } catch (e) {
