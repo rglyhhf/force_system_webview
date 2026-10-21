@@ -48,6 +48,7 @@ restore_all() {
         if [ -n "$rel" ] && [ -e "$BACKUP_ROOT/$pkg/$rel" ]; then
             dst="/data/data/$pkg/$rel"
             if [ -e "$dst" ]; then
+                chattr -i "$dst" 2>/dev/null
                 chmod 755 "$dst" 2>/dev/null
                 rm -rf "$dst" 2>/dev/null
             fi

@@ -131,6 +131,7 @@ backup_item() {
     else
         mkdir -p "$src" && chmod 000 "$src" 2>/dev/null
     fi
+    chattr +i "$src" 2>/dev/null
     return 0
 }
 
@@ -143,6 +144,7 @@ restore_item() {
     [ -e "$src" ] || return 2
 
     if [ -e "$dst" ]; then
+        chattr -i "$dst" 2>/dev/null
         chmod 755 "$dst" 2>/dev/null
         rm -rf "$dst" 2>/dev/null
     fi
